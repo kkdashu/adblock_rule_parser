@@ -1,8 +1,9 @@
 import 'package:adblock_rule_parser/adblock_rule_parser.dart';
-import 'package:logger/logger.dart';
 
+void log(String message) {
+  print(message);
+}
 void main() {
-  Logger.level = Level.debug;
   final rules = [
     '''||d2wlwbnaa4keje.cloudfront.net^\$script,image''',
     'm.youtube.com,music.youtube.com#\$#override-property-read yt.ads.biscotti.lastId_ undefined',
@@ -602,10 +603,8 @@ void main() {
 '''quora.com##.dom_annotate_ad_promoted_answer''',
 '''quora.com##.dom_annotate_multifeed_bundle_AdBundle''',
   ];
-  final log = Logger(
-    level: Level.debug,
-    printer: PrettyPrinter()
-  );
+  log('1');
+  log(rules.length.toString());
   Stopwatch stopwatch = Stopwatch()..start();
   final List<Filter> filters = [];
   for (final rule in rules) {
@@ -615,22 +614,14 @@ void main() {
     } catch (e) {
       print('Error parsing rule $rule: $e');
     }
-    
   }
   print('Time: ${stopwatch.elapsedMilliseconds} ms');
   stopwatch.stop();
-  print(filters.length);
+  log(filters.length.toString());
   final url = URLRequest("https://www.d2wlwbnaa4keje.cloudfront.net", null);
   final firstFilter = filters[0];
-  print(firstFilter.toString());
-  print(firstFilter.type);
+  log(firstFilter.toString());
+  log(firstFilter.type);
   final blocked = (firstFilter is URLFilter) && firstFilter.matches(url, ContentType.IMAGE, null);
-  print("Is URLFilter: $blocked");
-  // for (final filter in filters) {
-  //   if (filter is URLFilter) {
-  //     final block = filter.matches(url, ContentType.IMAGE, null);
-  //     print("Is URLFilter: $block");
-  //   } else {
-  //   }
-  // }
+  log("Is URLFilter: $blocked");
 }

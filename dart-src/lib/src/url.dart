@@ -10,14 +10,11 @@ class URLRequest {
       : locationLowerCase = location.toLowerCase();
 }
 
-/// Separates domains by the domainSeparator
-const String domainSeparator = '|';
-
 /// Parses the domains string and returns a map of domain to include/exclude
-Map<String, bool> parseDomains(String domains) {
+Map<String, bool> parseDomains(String domains, String separator) {
   Map<String, bool> result = {};
 
-  for (String domain in domains.split(domainSeparator)) {
+  for (String domain in domains.split(separator)) {
     if (domain.isEmpty) continue;
 
     bool include = true;

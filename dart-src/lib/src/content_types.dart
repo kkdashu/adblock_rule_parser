@@ -1,144 +1,112 @@
-// Copyright (c) 2024. This code is licensed under MIT license (see LICENSE for details)
+import 'package:collection/collection.dart';
 
-/// Content types that can be blocked
-class ContentType {
-  static const int OTHER = 1;
-  static const int SCRIPT = 2;
-  static const int IMAGE = 4;
-  static const int STYLESHEET = 8;
-  static const int OBJECT = 16;
-  static const int SUBDOCUMENT = 32;
-  static const int DOCUMENT = 64;
-  static const int WEBSOCKET = 128;
-  static const int WEBRTC = 256;
-  static const int CSP = 512;
-  static const int HEADER = 1024;
-  static const int GENERICHIDE = 2048;
-  static const int ELEMHIDE = 4096;
-  static const int GENERICBLOCK = 8192;
-  static const int PING = 16384;
-  static const int XMLHTTPREQUEST = 32768;
-  static const int OBJECT_SUBREQUEST = 65536;
-  static const int MEDIA = 131072;
-  static const int FONT = 262144;
-  static const int POPUP = 524288;
+const RESOURCE_TYPE = (1 << 24) - 1;
+const HEADER_TYPE = 1 << 26;
+const CSP_TYPE = 1 << 25;
 
-  /// All content types that can be blocked
-  static const int ALL = OTHER |
-      SCRIPT |
-      IMAGE |
-      STYLESHEET |
-      OBJECT |
-      SUBDOCUMENT |
-      DOCUMENT |
-      WEBSOCKET |
-      WEBRTC |
-      CSP |
-      HEADER |
-      GENERICHIDE |
-      ELEMHIDE |
-      GENERICBLOCK |
-      PING |
-      XMLHTTPREQUEST |
-      OBJECT_SUBREQUEST |
-      MEDIA |
-      FONT |
-      POPUP;
+const DOCUMENT_TYPE = 1 << 27;
+const GENERICBLOCK_TYPE = 1 << 28;
+const ELEMENTHIDE_TYPE = 1 << 29;
+const GENERICHIDE_TYPE = 1 << 30;
+enum ContentType {
+  /// Types of web resources
+  OTHER(v: 1),
+  SCRIPT(v: 2),
+  IMAGE(v: 4),
+  STYLESHEET(v: 8),
+  OBJECT(v: 16),
+  SUBDOCUMENT(v: 32),
+  WEBSOCKET(v: 128),
+  WEBRTC(v: 256),
+  PING(v: 1024),
+  XMLHTTPREQUEST(v: 2048), // 1 << 11
+  
+  MEDIA(v: 16384),
+  FONT(v: 32768), // 1 << 15
 
-  /// Maps type names to bit masks
-  static const Map<String, int> typeMap = {
-    'other': OTHER,
-    'script': SCRIPT,
-    'image': IMAGE,
-    'stylesheet': STYLESHEET,
-    'object': OBJECT,
-    'subdocument': SUBDOCUMENT,
-    'document': DOCUMENT,
-    'websocket': WEBSOCKET,
-    'webrtc': WEBRTC,
-    'csp': CSP,
-    'header': HEADER,
-    'generichide': GENERICHIDE,
-    'elemhide': ELEMHIDE,
-    'genericblock': GENERICBLOCK,
-    'ping': PING,
-    'xmlhttprequest': XMLHTTPREQUEST,
-    'object-subrequest': OBJECT_SUBREQUEST,
-    'media': MEDIA,
-    'font': FONT,
-    'popup': POPUP,
-  };
+  // Special filter options
+  POPUP(v: 1 << 24),
+  CSP(v: CSP_TYPE),
+  HEADER(v: HEADER_TYPE),
 
-  /// Maps bit masks to type names
-  static const Map<int, String> maskToType = {
-    OTHER: 'other',
-    SCRIPT: 'script',
-    IMAGE: 'image',
-    STYLESHEET: 'stylesheet',
-    OBJECT: 'object',
-    SUBDOCUMENT: 'subdocument',
-    DOCUMENT: 'document',
-    WEBSOCKET: 'websocket',
-    WEBRTC: 'webrtc',
-    CSP: 'csp',
-    HEADER: 'header',
-    GENERICHIDE: 'generichide',
-    ELEMHIDE: 'elemhide',
-    GENERICBLOCK: 'genericblock',
-    PING: 'ping',
-    XMLHTTPREQUEST: 'xmlhttprequest',
-    OBJECT_SUBREQUEST: 'object-subrequest',
-    MEDIA: 'media',
-    FONT: 'font',
-    POPUP: 'popup',
-  };
-}
+  // Allowing flags
+  DOCUMENT(v: DOCUMENT_TYPE),
+  GENERICBLOCK(v: GENERICHIDE_TYPE),
+  ELEMHIDE(v: ELEMENTHIDE_TYPE),
+  GENERICHIDE(v: GENERICHIDE_TYPE),
 
-/// Map of content type names to their corresponding bit flags
-final Map<String, int> _contentTypeMap = {
-  'OTHER': ContentType.OTHER,
-  'SCRIPT': ContentType.SCRIPT,
-  'IMAGE': ContentType.IMAGE,
-  'STYLESHEET': ContentType.STYLESHEET,
-  'OBJECT': ContentType.OBJECT,
-  'SUBDOCUMENT': ContentType.SUBDOCUMENT,
-  'DOCUMENT': ContentType.DOCUMENT,
-  'WEBSOCKET': ContentType.WEBSOCKET,
-  'WEBRTC': ContentType.WEBRTC,
-  'CSP': ContentType.CSP,
-  'HEADER': ContentType.HEADER,
-  'GENERICHIDE': ContentType.GENERICHIDE,
-  'ELEMHIDE': ContentType.ELEMHIDE,
-  'GENERICBLOCK': ContentType.GENERICBLOCK,
-  'PING': ContentType.PING,
-  'XMLHTTPREQUEST': ContentType.XMLHTTPREQUEST,
-  'OBJECT_SUBREQUEST': ContentType.OBJECT_SUBREQUEST,
-  'MEDIA': ContentType.MEDIA,
-  'FONT': ContentType.FONT,
-  'POPUP': ContentType.POPUP,
-};
 
-/// Convert content type text to bit flag
-int? contentTypeFromText(String text) {
-  return _contentTypeMap[text.toUpperCase()];
-}
+  ///Bitmask for "types" (flags) that are for exception rules only, like
+  ///`$document`, `$elemhide`, and so on.
+  ALLOWING_TYPES(v: DOCUMENT_TYPE | GENERICHIDE_TYPE | ELEMENTHIDE_TYPE | GENERICHIDE_TYPE),
 
-/// Convert content type bit flag to text
-String textFromType(int type) {
-  for (var entry in _contentTypeMap.entries) {
-    if (entry.value == type) {
-      return entry.key.toLowerCase();
-    }
+  /// Bitmask for resource types like `$script`, `$image`, `$stylesheet`, and so on.
+  
+  /// If a filter has no explicit content type, it applies to all resource types
+  /// (but not to any {@link module:contentTypes.SPECIAL_TYPES special types}).
+  ///
+  /// @const {number}
+  ///
+  /// @package
+  ///
+  /// The first 24 bits are reserved for resource types like "script", "image",
+  /// and so on.
+  /// https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest/ResourceType
+  RESOURCE(v: RESOURCE_TYPE),
+
+  ///
+  ///Bitmask for special "types" (options and flags) like `$csp`, `$elemhide`,
+  ///and so on.
+  SPECIAL_TYPES(v: ~RESOURCE_TYPE & (1 << 31) - 1),
+
+  ///Bitmask for "types" that match against request context more than
+  ///actual content type. When matching against context types, you
+  ///should also include the request's resource type.
+  CONTEXT_TYPES(v: HEADER_TYPE | CSP_TYPE),
+
+  ;
+  
+
+  const ContentType({
+    required this.v
+  });
+
+  final int v;
+
+  static ContentType? fromInt(int v) {
+    return ContentType.values.firstWhereOrNull((value) => value.v == v);
   }
-  return 'other';
-}
 
-/// Converts a content type string to its corresponding bit mask
-int typeFromText(String text) {
-  return ContentType.typeMap[text.toLowerCase()] ?? ContentType.OTHER;
-}
+  static ContentType? fromText(String text) {
+    return switch (text) {
+      "OTHER" => OTHER,
+      "SCRIPT" =>  SCRIPT,
+      "IMAGE" => IMAGE,
+      "STYLESHEET" => STYLESHEET,
+      "OBJECT" => OBJECT,
+      "SUBDOCUMENT" => SUBDOCUMENT,
+      "WEBSOCKET" => WEBSOCKET,
+      "WEBRTC" => WEBRTC,
+      "PING" => PING,
+      "XMLHTTPREQUEST" => XMLHTTPREQUEST,
 
-/// Converts a bit mask to its corresponding content type string
-String textFromTypeLegacy(int type) {
-  return ContentType.maskToType[type] ?? 'other';
+      "MEDIA" => MEDIA,
+      "FONT" => FONT,
+
+      "POPUP" => POPUP,
+      "CSP" => CSP,
+      "HEADER" => HEADER,
+
+      "DOCUMENT" => DOCUMENT,
+      "GENERICBLOCK" => GENERICBLOCK,
+      "ELEMHIDE" => ELEMHIDE,
+      "GENERICHIDE" => GENERICHIDE,
+
+      "ALLOWING_TYPES" => ALLOWING_TYPES,
+      "RESOURCE" => RESOURCE,
+      "SPECIAL_TYPES" => SPECIAL_TYPES,
+      "CONTEXT_TYPES" => CONTEXT_TYPES,
+      _ => null,
+    };
+  }
 }
