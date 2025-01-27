@@ -1,5 +1,8 @@
-// Copyright (c) 2024. This code is licensed under MIT license (see LICENSE for details)
+///
+/// [How-to-write-filters](https://help.adblockplus.org/hc/en-us/articles/360062733293-How-to-write-filters)
+///
 
+import 'package:adblock_rule_parser/src/error.dart';
 import 'package:adblock_rule_parser/src/filters/index.dart';
 
 import 'content_types.dart';
@@ -19,23 +22,19 @@ bool isActiveFilter(Filter filter) {
   return filter is ActiveFilter;
 }
 
+final knownFilters = Map<String, Filter>();
 /// Abstract base class for filters
 abstract class Filter {
   /// String representation of the filter
   final String text;
+
   
   // /// Source of the domains
   // String? domainSource;
   // 
   // /// Map containing domains that this filter should match on/not match
   // Map<String, bool>? _domains;
-  Filter(this.text);
-
-  // Filter(this.text, [this.domainSource]) {
-  //   if (domainSource != null && domainSource!.isNotEmpty) {
-  //     _domains = parseDomains(domainSource!);
-  //   }
-  // }
+  Filter._(this.text);
 
   /// Filter type as a string, e.g. "blocking"
   String get type;
@@ -44,152 +43,27 @@ abstract class Filter {
   bool get requiresPrivilegedSubscription => false;
 
   /// Creates a filter from filter text
-  static Filter fromText(String text) {
-    throw UnimplementedError();
-    // Normalize the text by removing unnecessary whitespace
-    // text = text.trim();
-    // 
-    // // Check for empty text
-    // if (text.isEmpty) {
-    //   throw FilterParsingException('filter_empty', {'text': text});
-    // }
-
-    // // Check for comments
-    // if (text.startsWith('!')) {
-    //   return CommentFilter(text);
-    // }
-
-    // // Check for snippet filters
-    // Match? snippetMatch = snippetFilterRegExp.firstMatch(text);
-    // if (snippetMatch != null) {
-    //   String domains = snippetMatch.group(1) ?? '';
-    //   String body = snippetMatch.group(2) ?? '';
-    //   return SnippetFilter(text, domains, body);
-    // }
-
-    // // Check for content filters
-    // if (contentFilterRegExp.hasMatch(text)) {
-    //   return CommentFilter(text); // For now, treat as comment
-    // }
-
-
-    // bool blocking = true;
-    // String origText = text;
-    // 
-    // // Check for allowing filters
-    // if (text.startsWith('@@')) {
-    //   blocking = false;
-    //   text = text.substring(2);
-    // }
-
-    // int contentType = ContentType.OTHER.v;
-    // bool matchCase = false;
-    // String? domains;
-    // List<String>? sitekeys;
-    // bool thirdParty = false;
-    // String? csp;
-    // String? rewrite;
-    // Map<String, String>? headers;
-
-    // // Parse options
-    // Match? match = text.contains('\$') ? filterOptionsRegExp.firstMatch(text) : null;
-    // if (match != null) {
-    //   String options = match[1]!;
-    //   text = text.substring(0, match.start);
-
-    //   for (String option in options.split(',')) {
-    //     String value = '';
-    //     bool inverse = false;
-    //     
-    //     // Check for option value
-    //     int separatorIndex = option.indexOf('=');
-    //     if (separatorIndex >= 0) {
-    //       value = option.substring(separatorIndex + 1);
-    //       option = option.substring(0, separatorIndex);
-    //     }
-
-    //     // Check for inverse option
-    //     if (option.startsWith('~')) {
-    //       inverse = true;
-    //       option = option.substring(1);
-    //     }
-
-    //     String optionUpperCase = option.toUpperCase();
-    //     int? type = contentTypeFromText(optionUpperCase.replaceAll('-', '_'));
-
-    //     if (type != null) {
-    //       if (inverse) {
-    //         contentType &= ~type;
-    //       } else if (type == ContentType.CSP) {
-    //         if (blocking && value.isEmpty) {
-    //           throw FilterParsingError('filter_invalid_csp', {'text': origText});
-    //         }
-    //         csp = value;
-    //       } else {
-    //         contentType |= type;
-    //       }
-    //     } else {
-    //       switch (option.toLowerCase()) {
-    //         case 'match-case':
-    //           matchCase = true;
-    //           break;
-    //         case 'domain':
-    //           domains = value;
-    //           break;
-    //         case 'third-party':
-    //         case 'thirdparty':
-    //           thirdParty = !inverse;
-    //           break;
-    //         case 'sitekey':
-    //           if (value.isNotEmpty) {
-    //             sitekeys = value.split('|');
-    //           }
-    //           break;
-    //         case 'rewrite':
-    //           if (value.isNotEmpty) {
-    //             rewrite = value;
-    //           }
-    //           break;
-    //         default:
-    //           throw FilterParsingError('filter_unknown_option', 
-    //             {'text': origText, 'option': option});
-    //       }
-    //     }
-    //   }
-    // }
-
-    // // Create the appropriate filter
-    // try {
-    //   if (blocking) {
-    //     return BlockingFilter(
-    //       origText,
-    //       text,
-    //       contentType,
-    //       matchCase,
-    //       domains,
-    //       thirdParty,
-    //       sitekeys,
-    //       headers,
-    //       rewrite,
-    //       csp
-    //     );
-    //   } else {
-    //     return AllowingFilter(
-    //       origText,
-    //       text,
-    //       contentType,
-    //       matchCase,
-    //       domains,
-    //       thirdParty,
-    //       sitekeys,
-    //       headers,
-    //       rewrite
-    //     );
-    //   }
-    // } catch (e) {
-    //   throw FilterParsingError('filter_invalid_regexp', 
-    //     {'text': origText, 'regexp': text});
-    // }
+  factory Filter.fromText(String text) {
+    final knownFilter = knownFilters[text];
+    if (knownFilter != null) {
+      return knownFilter;
+    }
+    if (text.isEmpty) {
+      throw ParseFilterException("empty_filter");
+    }
+    if (text[0] == "!") {
+      return CommentFilter(text);
+    } else {
+      final match = text.contains('#') ? contentFilterRegExp.firstMatch(text) : null;
+      if (match != null) {
+        final domain = match.group(1) ?? '';
+        final type = match.group(2) ?? '';
+        final body = match.group(3) ?? '';
+        return ContentFilter.fromText(text: text, domains: domain, type: type, body: body);
+      } else {
+        return URLFilter.fromText(text);
+      }
+    }
   }
 
   @override
@@ -203,32 +77,10 @@ abstract class Filter {
   }
 }
 
-final knownFilters = Map<String, Filter>();
-
-/// Class for invalid filters
-class InvalidFilter extends Filter {
-  final String reason;
-  final String? option;
-
-  InvalidFilter(String text, this.reason, [this.option]) : super(text);
-
-  @override
-  String get type => 'invalid';
-
-  @override
-  String toString() {
-    var props = {
-      'text': text,
-      'reason': reason,
-      if (option != null) 'option': option,
-    };
-    return '${runtimeType} ${props.toString()}';
-  }
-}
 
 /// Class for comment filters
 class CommentFilter extends Filter {
-  CommentFilter(String text) : super(text);
+  CommentFilter(String text) : super._(text);
 
   @override
   String get type => 'comment';
@@ -236,21 +88,6 @@ class CommentFilter extends Filter {
   @override
   String toString() => '${runtimeType} { text: \'$text\' }';
 }
-
-/// Class for snippet filters
-// class SnippetFilter extends Filter {
-//   final String body;
-// 
-//   SnippetFilter(String text, String domains, this.body) : super(text, domains);
-// 
-//   @override
-//   String get type => 'snippet';
-// 
-//   @override
-//   String toString() {
-//     return '${runtimeType} { text: \'$text\', domainSource: \'$domainSource\', _domains: ${_domains}, body: \'$body\' }';
-//   }
-// }
 
 /// Abstract base class for filters that can get hits
 abstract class ActiveFilter extends Filter {
@@ -263,7 +100,7 @@ abstract class ActiveFilter extends Filter {
 
   Map<String, bool> _domains = {};
 
-  ActiveFilter(String text, String? domains) : domainSource = domains ?? '', _domains = parseDomains(domains ?? '', ','), super(text) ;
+  ActiveFilter(String text, String? domains) : domainSource = domains ?? '', _domains = parseDomains(domains ?? '', ','), super._(text) ;
 
   /// Number of hits on the filter since the last reset
   int get hitCount => _hitCount;
@@ -368,6 +205,48 @@ abstract class URLFilter extends ActiveFilter {
 
   RegExp? get regexp => urlPattern.regexp;
 
+  factory URLFilter.fromText(String txt) {
+    final result = parseFilter(txt);
+    final ParsedFilter(
+      :domains,
+      :blocking,
+      :text,
+      :csp,
+      :header,
+      :rewrite,
+      :siteKeys,
+      :matchCase,
+      :thirdParty,
+      :contentType,
+      :regexpSource
+    ) = result;
+    if (blocking) {
+      return BlockingFilter(
+        text: text,
+        regexpSource: regexpSource,
+        contentType: contentType,
+        matchCase: matchCase,
+        domains: domains,
+        thirdParty: thirdParty,
+        sitekeys: siteKeys.split(','),
+        headers: header,
+        rewrite: rewrite,
+        csp: csp,
+      );
+    }
+    return AllowingFilter(
+      text: text,
+      regexpSource: regexpSource,
+      contentType: contentType,
+      matchCase: matchCase,
+      domains: domains,
+      thirdParty: thirdParty,
+      sitekeys: siteKeys.split(','),
+      headers: header,
+      rewrite: rewrite,
+    );
+  }
+
 
   @override
   String toString() {
@@ -388,6 +267,7 @@ abstract class URLFilter extends ActiveFilter {
 }
 
 /// Class for blocking filters
+/// Applied on the network level to decide whether a request should be blocked.
 class BlockingFilter extends URLFilter {
   BlockingFilter({
     required super.text,
@@ -460,4 +340,102 @@ class AllowingFilter extends URLFilter {
 
   @override
   String get type => 'allowing';
+}
+
+/// https://help.adblockplus.org/hc/en-us/articles/360062733293-How-to-write-filters#content-filters
+/// 一般格式是 <domains><separator><body>
+/// 分隔符不同对应不同的 ContentFilter
+/// ##	Element hiding	CSS selector (domains may be empty) // ElementHideFilter
+/// #?#	Element hiding emulation	Extended CSS selector     // ElemHideEmulationFilter
+/// #@#	Element hiding exception	Selector                  // ElementHideExceptionFilter
+/// #$#	Snippet filter	Snippet                             // SnippetFilter
+abstract class ContentFilter extends ActiveFilter {
+  // body 一般是用于指定隐藏内容的CSS样式
+  final String body;
+  ContentFilter(
+    super.text,
+    super.domains,
+    this.body,
+  );
+
+  factory ContentFilter.fromText({
+    required String text,
+    required String domains,
+    required String type,
+    required String body
+  }) {
+    if (domains.isNotEmpty && RegExp(r'(^|,)~?(,|$)').hasMatch(domains)) {
+      return InvalidContentFilter(text, domains, body);
+    }
+
+    final restrictedByDomain = (RegExp(r',[^~][^,.]*\.[^,]').hasMatch("," + domains) ||
+      ("," + domains + ",").contains(",localhost,"));
+
+    if (type == "?" || type == "\$") {
+      // Element hiding emulation and snippet filters are inefficient so we need
+      // to make sure that they're only applied if they specify active domains
+      if (!restrictedByDomain) {
+        return InvalidContentFilter(text, domains, body);
+      }
+
+      if (type == "?") {
+        return ElemHideEmulationFilter(text, domains, body);
+      }
+
+      return SnippetFilter(text, domains, body);
+    }
+
+    if (!restrictedByDomain && body.length < MIN_GENERIC_CONTENT_FILTER_BODY_LENGTH) {
+      return InvalidContentFilter(text, domains, body);
+    }
+
+    if (type == "@") {
+      return ElemHideExceptionFilter(text, domains, body);
+    }
+
+    return ElementHideFilter(text, domains, body);
+  }
+}
+
+class InvalidContentFilter extends ContentFilter {
+  InvalidContentFilter(super.text, super.domains, super.body);
+
+  @override
+  String get type => "invalid";
+}
+
+class ElementHideFilter extends ContentFilter {
+  ElementHideFilter(super.text, super.domains, super.body);
+
+  String get selector => body;
+
+  @override
+  String get type => "elemhide";
+}
+
+class ElemHideExceptionFilter extends ContentFilter {
+  ElemHideExceptionFilter(super.text, super.domains, super.body);
+
+  @override
+  String get type => "elemhideexception";
+}
+
+class ElemHideEmulationFilter extends ContentFilter {
+  ElemHideEmulationFilter(super.text, super.domains, super.body);
+
+  String get selector => body;
+
+  @override
+  String get type => "elemhide_emulation";
+}
+
+class SnippetFilter extends ContentFilter {
+  SnippetFilter(super.text, super.domains, super.body);
+
+  String get type => "snippet";
+
+  bool get requiresPrivilegedSubscription => true;
+
+  /// SnippetFilter 需要执行的脚本代码
+  String get script => body;
 }

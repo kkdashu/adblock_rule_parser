@@ -31,14 +31,14 @@ enum ContentType {
 
   // Allowing flags
   DOCUMENT(v: DOCUMENT_TYPE),
-  GENERICBLOCK(v: GENERICHIDE_TYPE),
+  GENERICBLOCK(v: GENERICBLOCK_TYPE),
   ELEMHIDE(v: ELEMENTHIDE_TYPE),
   GENERICHIDE(v: GENERICHIDE_TYPE),
 
 
   ///Bitmask for "types" (flags) that are for exception rules only, like
   ///`$document`, `$elemhide`, and so on.
-  ALLOWING_TYPES(v: DOCUMENT_TYPE | GENERICHIDE_TYPE | ELEMENTHIDE_TYPE | GENERICHIDE_TYPE),
+  ALLOWING_TYPES(v: DOCUMENT_TYPE | GENERICBLOCK_TYPE | ELEMENTHIDE_TYPE | GENERICHIDE_TYPE),
 
   /// Bitmask for resource types like `$script`, `$image`, `$stylesheet`, and so on.
   
@@ -75,6 +75,10 @@ enum ContentType {
 
   static ContentType? fromInt(int v) {
     return ContentType.values.firstWhereOrNull((value) => value.v == v);
+  }
+
+  bool isType(ContentType type) {
+    return (v & type.v) != 0;
   }
 
   static ContentType? fromText(String text) {

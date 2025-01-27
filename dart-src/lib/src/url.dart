@@ -63,9 +63,9 @@ bool isThirdParty(String url, String documentDomain) {
 String extractDomain(String url) {
   try {
     Uri uri = Uri.parse(url);
-    String? host = uri.host;
+    var host = uri.host;
     
-    if (host == null || host.isEmpty) {
+    if (host.isEmpty) {
       return '';
     }
     

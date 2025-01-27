@@ -1,5 +1,6 @@
 
 import 'package:adblock_rule_parser/src/content_types.dart';
+import 'package:adblock_rule_parser/src/error.dart';
 
 /// Regular expression that content filters should match
 final contentFilterRegExp = RegExp(r'^([^/|@"!]*?)#([@?$])?#(.+)$');
@@ -60,23 +61,12 @@ class ParsedFilter {
 }
 
 
-/// Class for filter parsing errors
-class FilterParsingException {
-  final String message;
-  final Map<String, String> detail;
-
-  FilterParsingException(this.message, this.detail);
-
-  @override
-  String toString() => 'FilterParsingException: $message (${detail['text']})';
-}
-
-ParsedFilter parse(String text) {
+ParsedFilter parseFilter(String text) {
   if (text.isEmpty) {
-    throw FilterParsingException('filter_empty', {'text': text});
+    throw ParseFilterException('filter_empty');
   }
   if (text[0] == "!" || contentFilterRegExp.hasMatch(text)) {
-    throw FilterParsingException('filter_invalid', {'text': text});
+    throw ParseFilterException('filter_invalid');
   }
   var blocking = true;
   int? contentType = null;
@@ -119,13 +109,13 @@ ParsedFilter parse(String text) {
           contentType = contentType &= ~type.v;
         } else if (type == ContentType.CSP) {
           if (blocking && (value == null || value.isEmpty)) {
-            throw FilterParsingException("filter_invalid_csp", {'text': origText});
+            throw ParseFilterException("filter_invalid_csp");
           }
           cspSet = true;
           csp = value ?? "";
         } else if (type == ContentType.HEADER) {
           if (blocking && (value == null || value.isEmpty)) {
-            throw FilterParsingException("filter_invalid_header", {'text': origText});
+            throw ParseFilterException("filter_invalid_header");
           }
           headerSet = true;
           if (value != null && value.isNotEmpty) {
@@ -143,7 +133,7 @@ ParsedFilter parse(String text) {
             break;
           case "DOMAIN":
             if (value == null || value.isEmpty) {
-              throw FilterParsingException("filter_unknown_option", {'text': origText});
+              throw ParseFilterException("filter_unknown_option");
             } else {
               domains = value;
             }
@@ -153,17 +143,17 @@ ParsedFilter parse(String text) {
             break;
           case "SITEKEY":
             if (value == null || value.isEmpty) {
-              throw FilterParsingException("filter_unknown_option", {'text': origText});
+              throw ParseFilterException("filter_unknown_option");
             } else {
               siteKeys = value;
             }
             break;
           case "REWRITE":
             if (value == null || value.isEmpty) {
-              throw FilterParsingException("filter_unknown_option", {'text': origText});
+              throw ParseFilterException("filter_unknown_option");
             }
             if (!value.startsWith("abp-resource:")) {
-              throw FilterParsingException("filter_invalid_rewrite", {'text': origText});
+              throw ParseFilterException("filter_invalid_rewrite");
             }
             rewrite = value.substring("abp-resource:".length);
             break;
@@ -194,26 +184,26 @@ ParsedFilter parse(String text) {
       }
     }
     if (length < minTextLength && !text.contains("*")) {
-      throw FilterParsingException("filter_url_not_specific_enough", {'text': origText});
+      throw ParseFilterException("filter_url_not_specific_enough");
     }
   } else if (domains.isNotEmpty && RegExp(r"[^\x00-\x7F]").hasMatch(domains)) {
-    throw FilterParsingException("filter_invalid_domain", {'text': origText});
+    throw ParseFilterException("filter_invalid_domain");
   }
   if (blocking) {
     if (csp.isNotEmpty && invalidCSPRegExp.hasMatch(csp)) {
-      throw FilterParsingException("filter_invalid_csp", {'text': origText});
+      throw ParseFilterException("filter_invalid_csp");
     }
     if (rewrite.isNotEmpty) {
       if (text.startsWith("||")) {
         if (domains.isEmpty && thirdParty != false) {
-          throw FilterParsingException("filter_invalid_rewrite", {'text': origText});
+          throw ParseFilterException("filter_invalid_rewrite");
         }
       } else if (text.startsWith("*")) {
         if (domains.isEmpty) {
-          throw FilterParsingException("filter_invalid_rewrite", {'text': origText});
+          throw ParseFilterException("filter_invalid_rewrite");
         }
       } else {
-          throw FilterParsingException("filter_invalid_rewrite", {'text': origText});
+          throw ParseFilterException("filter_invalid_rewrite");
       }
     }
   }
