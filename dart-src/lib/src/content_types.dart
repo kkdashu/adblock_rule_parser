@@ -1,7 +1,6 @@
 import 'package:collection/collection.dart';
 
 const RESOURCE_TYPE = (1 << 24) - 1;
-const HEADER_TYPE = 1 << 26;
 const CSP_TYPE = 1 << 25;
 
 const DOCUMENT_TYPE = 1 << 27;
@@ -27,7 +26,6 @@ enum ContentType {
   // Special filter options
   POPUP(v: 1 << 24),
   CSP(v: CSP_TYPE),
-  HEADER(v: HEADER_TYPE),
 
   // Allowing flags
   DOCUMENT(v: DOCUMENT_TYPE),
@@ -62,7 +60,7 @@ enum ContentType {
   ///Bitmask for "types" that match against request context more than
   ///actual content type. When matching against context types, you
   ///should also include the request's resource type.
-  CONTEXT_TYPES(v: HEADER_TYPE | CSP_TYPE),
+  CONTEXT_TYPES(v: CSP_TYPE),
 
   ;
   
@@ -99,7 +97,6 @@ enum ContentType {
 
       "POPUP" => POPUP,
       "CSP" => CSP,
-      "HEADER" => HEADER,
 
       "DOCUMENT" => DOCUMENT,
       "GENERICBLOCK" => GENERICBLOCK,
